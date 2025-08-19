@@ -1,3 +1,4 @@
+[![Actions Status](https://github.com/gamk67/Graphics-Penplotter-GcodeXY/actions/workflows/test.yml/badge.svg)](https://github.com/gamk67/Graphics-Penplotter-GcodeXY/actions)
 # NAME
 
 GcodeXY - Produce gcode files for pen plotters from Perl
