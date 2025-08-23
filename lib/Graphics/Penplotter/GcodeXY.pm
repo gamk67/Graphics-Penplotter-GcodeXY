@@ -1,9 +1,9 @@
 # lib/GcodeXY.pm
-package GcodeXY v0.5.4;
+package GcodeXY v0.5.5;
 
 use strict;
 use warnings;
-use vars qw($VERSION @ISA @EXPORT);  # TODO
+use vars qw($VERSION @ISA @EXPORT);
 use Exporter;
 use Math::Trig qw/deg2rad tan acos/;
 use Math::Bezier;
@@ -1216,6 +1216,7 @@ sub rotate {
 sub initmatrix {
     my $self = shift;
     $self->{CTM} = [ [ 1, 0, 0 ], [ 0, 1, 0 ], [ 0, 0, 1 ] ]; # current transformation matrix
+    return 1;
 }
 
 #
@@ -1476,12 +1477,12 @@ sub setfont {
     my ( $self, $font, $size ) = @_;
     if ( !defined $font ) {
         $self->_croak('setfont: no font name specified');
-        return 0;
+        return undef;
     }
     my $nam = $self->findfont($font);
     if ( $nam eq $EMPTY_STR ) {
         $self->_croak( 'setfont: font ' . $font . ' not found' );
-        return 0;
+        return undef;
     }
     my $freetype = Font::FreeType->new;
     my $face     = $freetype->face( $nam, load_flags => FT_LOAD_NO_HINTING );
@@ -1490,7 +1491,7 @@ sub setfont {
     }
     if ( !defined $size ) {
         $self->_croak('setfont: no font size specified');
-        return 0;
+        return undef;
     }
     # save name and size in object
     $self->{fontsize} = $size;
@@ -1817,7 +1818,7 @@ sub _addpath {
         return 0;
     }
     my ( $key, $sx, $sy, $dx, $dy ) = @_;
-    # TODO could insert LiangBarsky here to do cropping for svg viewbox
+    # could insert LiangBarsky here to do cropping for svg viewbox
     $self->{psegments}[$len] = { key => $key, sx => $sx, sy => $sy, dx => $dx, dy => $dy };
     return 1;
 }
@@ -2283,18 +2284,6 @@ sub strokefill {
     return 1;
 }
 
-#------------------------------------------------------------------
-
-# clipping
-
-#sub setclip {
-#    my $self = shift;
-#
-#    # copy the current segment list to the csegment list
-#    $self->{csegments} = copy( $self->{psegments} );
-#    return 1;
-#}
-
 #-------------------------------------------------------------------
 
 #
@@ -2541,7 +2530,9 @@ sub _warn {
 
 # Liang-Barsky line clipping function by Daniel White @
 # https://www.skytopia.com/project/articles/compsci/clipping.html
-# Modified to remove bug, and translated into Perl.
+# This code was modified to remove a bug, then translated into Perl.
+# use:
+# ($x1, $y1, $x2, $y2, $info) = $obj->_LiangBarsky($botx, $boty, $topx, $topy, $x0src, $y0src, $x1src, $y1src);
 # The first four parameters are the coordinates of the bottom left and
 # top right corners of the rectangle.
 # The last four parameters are the coordinates of the start and end of the line segment.
@@ -2553,7 +2544,8 @@ sub _warn {
 # 5 neither startpoint nor endpoint inside, but other parts are
 # The function returns the clipped line segment in the other variables, unless info
 # is 2, in which case -1 is returned.
-# This code is self contained, so suitable for inclusion elsewhere, and well tested.
+# This code is self contained, so suitable for inclusion elsewhere, and well tested
+# (remove $self if necessary).
 sub _LiangBarsky {
     my ( $self, $botx, $boty, $topx, $topy, $x0src, $y0src, $x1src, $y1src ) = @_;
     my $t0     = 0.0;
@@ -2685,7 +2677,7 @@ sub _svgconvert {
     my ($self, $value) = @_;
     my $inches = _svg_value_to_inches($value);
     return $inches * $inches_to_unit{$self->{units}};   # $value converted to user units
-    # TODO need to return both inches and value?
+    # ?? need to return both inches and value?
 }
 
 # import the svg
@@ -3035,7 +3027,7 @@ sub _dotransform {
             );
             $self->_premulmat( \@matrix, \@{ $self->{CTM} } );
         }
-    }    # for tra
+    }
     return 1;
 }
 

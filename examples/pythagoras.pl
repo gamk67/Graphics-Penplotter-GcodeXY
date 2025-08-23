@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 # tree of pythagoras with 45 degree angles, plotted in landscape
 
@@ -19,7 +19,7 @@ my $s      = 180;     # initial size
 my $hsqrt2 = 0.7071;  # half the square root of 2
 
 # simulate landscape mode in A3
-$g->translate(50,650);
+$g->translate(50,650);   # middle of page, bottom
 $g->rotate(-90);
 
 # generate the tree, 10 levels
