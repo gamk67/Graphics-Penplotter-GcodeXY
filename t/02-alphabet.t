@@ -8,7 +8,7 @@ use Graphics::Penplotter::GcodeXY;
 use Test::Simple 'no_plan';
 use Font::FreeType;
 
-my $font    = 'arial.ttf';
+my $font    = 'LiberationSans-Regular.ttf';
 my $string1 = "EFILTZ";  # 2 crossings
 my $string2 = "ABCDGHJK";
 my $string3 = "MNOPQR";
@@ -21,7 +21,7 @@ my $string9 = "mnopqr";
 
 
 # create a gcode object
-my $g = new GcodeXY(
+my $g = new Graphics::Penplotter::GcodeXY(
    papersize => "A3",
    units     => "pt",
    check     => 1,
@@ -30,10 +30,6 @@ my $g = new GcodeXY(
    #warn      => 1
    );
 
-   $g->addfontpath("~/Documents/fonts/lexia/",
-                   "~/Documents/fonts/main/",
-                   "~/Documents/fonts/other/"
-                  );
 my $y = 100;
 my $x = 50;
 my $face = $g->setfont($font, 100);

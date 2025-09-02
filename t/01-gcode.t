@@ -5,7 +5,7 @@ use warnings;
 use Graphics::Penplotter::GcodeXY;  
 use Test::Simple 'no_plan';
   
-my $g = new GcodeXY(
+my $g = new Graphics::Penplotter::GcodeXY(
           id        => "example declaration",
           papersize => "A3",
           units     => "pt",

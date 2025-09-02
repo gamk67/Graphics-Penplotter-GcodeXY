@@ -10,7 +10,6 @@ GcodeXY - Produce gcode files for pen plotters from Perl
     $g = new GcodeXY( papersize => "A4", units => "in");
     # draw some lines and other shapes
     $g->line(1,1, 1,4);
-    $g->linextend(2,4);
     $g->box(1.5,1, 2,3.5);
     $g->polygon(1,1, 1,2, 2,2, 2,1, 1,1);
     # write the output to a file

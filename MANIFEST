@@ -1,3 +1,4 @@
+bin/gcode-simulator.pl
 Build.PL
 Changes
 cpanfile

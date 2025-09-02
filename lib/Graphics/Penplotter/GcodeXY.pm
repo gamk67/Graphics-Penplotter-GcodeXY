@@ -1,6 +1,6 @@
-# lib/GcodeXY.pm
-package GcodeXY v0.5.5;
+package Graphics::Penplotter::GcodeXY v0.5.9;
 
+use v5.38.2;  # required by List::Util and Term::ANSIcolor (perl testers matrix)
 use strict;
 use warnings;
 use vars qw($VERSION @ISA @EXPORT);
@@ -10,15 +10,14 @@ use Math::Bezier;
 use POSIX qw/ceil/;
 use Image::SVG::Transform;
 use Image::SVG::Path 'extract_path_info';
-use Data::Dumper;
 use Font::FreeType;
 use List::Util qw(min max);
 use Readonly;
 use Carp;
 use Term::ANSIColor qw/:constants/;
 use File::Temp qw/ tempfile /;
-
 use parent qw(Exporter);
+
 our @EXPORT_OK = qw(translate translateC stroketextfill stroketext strokefill stroke split
                     skewX skewY sethatchsep setfontsize setfont scale rotate polygonR polygonC
                     polygon penup pendown pageborder exportsvg exporteps output newsegpath
@@ -134,7 +133,16 @@ my @m_points          = ();
 # font handling
 my $home      = $ENV{'HOME'};
 # where to look for fonts:
-my @locations = ( './', $home . '/.fonts/', '/usr/share/fonts/truetype/' );
+my @locations = (   './',
+                    $home . '/.fonts/',
+                    $home . '/.local/share/fonts/',
+                    '/usr/share/fonts/truetype/',
+                    '/usr/share/fonts/truetype/liberation/',
+                    '/usr/share/fonts/truetype/dejavu/',
+                    '/usr/share/fonts/truetype//msttcorefonts/',
+                    '/usr/share/fonts/',
+                    '/usr/local/share/fonts/'
+                );
 
 # object allocation
 sub new {
@@ -174,10 +182,7 @@ sub new {
         slowdistcount => 0,    # distance traveled on paper (in fact, its square)
         fastdistcount => 0,    # distance traveled above paper (in fact, its square)
 
-        # plus others, set in init():
-        #     currentpage => [],
-        #     path        => [],
-        #     gstate      => [],
+        # plus others, set in init()
     };
     foreach ( keys %data ) {
         $self->{$_} = $data{$_};
@@ -4485,12 +4490,11 @@ GcodeXY - Produce gcode files for pen plotters from Perl
 
 =head1 SYNOPSIS
 
-    use GcodeXY;
+    use Graphics::Penplotters::GcodeXY;
     # create a new GcodeXY object
-    $g = new GcodeXY( papersize => "A4", units => "in");
+    $g = new Graphics::Penplotters::GcodeXY( papersize => "A4", units => "in");
     # draw some lines and other shapes
     $g->line(1,1, 1,4);
-    $g->linextend(2,4);
     $g->box(1.5,1, 2,3.5);
     $g->polygon(1,1, 1,2, 2,2, 2,1, 1,1);
     # write the output to a file
@@ -4620,7 +4624,7 @@ movement.
 
 Example:
 
-        $ref = new GcodeXY( xsize  => 4,
+        $ref = new Graphics::Penplotters::GcodeXY( xsize  => 4,
                         ysize      => 3,
                         units      => "in",
                         warn       => 1,
