@@ -6,6 +6,7 @@ Revision history for Perl extension Graphics-Penplotter-GcodeXY
 
     - fully qualified GcodeXY declarations
     - cleanup comments
+    - more examples
     
 01-09-2025 version 0.5.8
 

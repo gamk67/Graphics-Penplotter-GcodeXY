@@ -7,7 +7,7 @@ use warnings;
 use Graphics::Penplotter::GcodeXY;
 
 # create a gcode object
-my $g = new GcodeXY(
+my $g = new Graphics::Penplotter::GcodeXY(
            papersize => "A3",
            units     => "pt",
            id        => "pythagoras",

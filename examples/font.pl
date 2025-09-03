@@ -12,13 +12,14 @@ my $font   = 'arial.ttf';
 my $string = 'She Sells Seashells by the Seashore';
 
 # create a gcode object
-my $g = new GcodeXY(
+my $g = new Graphics::Penplotter::GcodeXY(
    papersize => "A3",
    units     => "pt",
    id        => "font-example",
    );
 
-   # add your private list of font directories here, if necessary
+   # add your private list of font directories here, if necessary,
+   # or modify the current entries
    $g->addfontpath("~/Documents/fonts/lexia/",
                    "~/Documents/fonts/main/",
                    "~/Documents/fonts/other/"

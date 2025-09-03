@@ -4,6 +4,7 @@ Changes
 cpanfile
 examples/bezier-danheng.gcode
 examples/bezier-danheng.pl
+examples/box-round.pl
 examples/car-vp.gcode
 examples/car-vp.ps
 examples/car-vp.svg
@@ -13,6 +14,7 @@ examples/font.pl
 examples/pythagoras.gcode
 examples/pythagoras.pl
 examples/svgimport.pl
+examples/triangles.pl
 INSTALL
 lib/Graphics/Penplotter/.vstags
 lib/Graphics/Penplotter/GcodeXY.pm
@@ -23,6 +25,7 @@ minil.toml
 README.md
 script/gcode-simulator.pl
 script/manifest-gen.sh
+script/template.pl
 script/test.yml
 t/00_compile.t
 t/01-gcode.t

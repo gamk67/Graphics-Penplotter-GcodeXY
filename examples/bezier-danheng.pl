@@ -8,7 +8,7 @@ use warnings;
 use Graphics::Penplotter::GcodeXY;
 
 # create a gcode object
-my $p = new GcodeXY(
+my $p = new Graphics::Penplotter::GcodeXY(
             papersize => "A3",
             units     => "pt",
             warn      => 1,
