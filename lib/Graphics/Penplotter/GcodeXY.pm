@@ -1,4 +1,4 @@
-package Graphics::Penplotter::GcodeXY v0.5.9;
+package Graphics::Penplotter::GcodeXY v0.5.11;
 
 use v5.38.2;  # required by List::Util and Term::ANSIcolor (perl testers matrix)
 use strict;
@@ -141,7 +141,8 @@ my @locations = (   './',
                     '/usr/share/fonts/truetype/dejavu/',
                     '/usr/share/fonts/truetype//msttcorefonts/',
                     '/usr/share/fonts/',
-                    '/usr/local/share/fonts/'
+                    '/usr/local/share/fonts/',
+                    'C:/Windows/Fonts/'
                 );
 
 # object allocation
@@ -1623,8 +1624,8 @@ sub addfontpath {
         my $path = $_;
         # ~ is not recognised
         $path =~ s{\A\N{TILDE}}{$home};
-        # add a / at the end if necessary
-        if ( $path !~ m{\N{SOLIDUS}\z} ) {
+        # add a / at the end if necessary, make sure to check for Windows backslash
+        if ( ($path !~ m{\N{SOLIDUS}\z}) && ($path !~ m{\N{REVERSE SOLIDUS}\z})) {
             $path .= '/';
         }
         push @locations, $path;
@@ -3446,7 +3447,8 @@ sub _parse {
     if ( $opp eq 'G01' ) {
         return ( $G01, $xcoord, $ycoord );
     }
-    print STDOUT "parse: unknown instruction \"$ss\"";
+    # the user can insert own instruction, e.g. in header - we should not complain about that
+    # print STDOUT "parse: unknown instruction \"$ss\"";
     return ( $NOOP, 0, 0 );
 }
 
