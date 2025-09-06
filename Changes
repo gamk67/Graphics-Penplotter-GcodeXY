@@ -2,6 +2,12 @@ Revision history for Perl extension Graphics-Penplotter-GcodeXY
 
 {{$NEXT}}
 
+06-09-2025 version 0.5.10
+
+    - MS Windows default font paths
+    - check for backslashes
+    - disable parser warnings
+
 02-09-2025 version 0.5.9
 
     - fully qualified GcodeXY declarations
