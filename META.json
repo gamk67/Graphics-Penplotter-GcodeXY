@@ -64,9 +64,6 @@
    },
    "release_status" : "unstable",
    "resources" : {
-      "bugtracker" : {
-         "web" : "https://github.com/gamk67/Graphics-Penplotter-GcodeXY/issues"
-      },
       "homepage" : "https://github.com/gamk67/Graphics-Penplotter-GcodeXY",
       "repository" : {
          "type" : "git",

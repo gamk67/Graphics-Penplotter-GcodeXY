@@ -15,6 +15,7 @@ examples/pythagoras.gcode
 examples/pythagoras.pl
 examples/svgimport.pl
 examples/triangles.pl
+Graphics-Penplotter-GcodeXY-v0.5.11.tar.gz
 INSTALL
 lib/Graphics/Penplotter/.vstags
 lib/Graphics/Penplotter/GcodeXY.pm
