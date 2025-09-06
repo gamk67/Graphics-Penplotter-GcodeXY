@@ -5,9 +5,9 @@ GcodeXY - Produce gcode files for pen plotters from Perl
 
 # SYNOPSIS
 
-    use GcodeXY;
+    use Graphics::Penplotters::GcodeXY;
     # create a new GcodeXY object
-    $g = new GcodeXY( papersize => "A4", units => "in");
+    $g = new Graphics::Penplotters::GcodeXY( papersize => "A4", units => "in");
     # draw some lines and other shapes
     $g->line(1,1, 1,4);
     $g->box(1.5,1, 2,3.5);
@@ -133,7 +133,7 @@ need `Image::SVG::Transform` and `XML::Parser` and `Image::SVG::Path` and `POSIX
 
     Example:
 
-            $ref = new GcodeXY( xsize  => 4,
+            $ref = new Graphics::Penplotters::GcodeXY( xsize  => 4,
                             ysize      => 3,
                             units      => "in",
                             warn       => 1,
