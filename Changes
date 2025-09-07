@@ -2,30 +2,28 @@ Revision history for Perl extension Graphics-Penplotter-GcodeXY
 
 {{$NEXT}}
 
-v0.5.11 2025-09-06T15:32:00Z
-    v0.5.11 2025-09-06T15:25:30Z
-    v0.5.11 2025-09-06T15:19:55Z
-    v0.5.11 2025-09-06T14:17:35Z
+0.5.11 2025-09-06T14:17:35Z
+    - minor fixes
 
-    06-09-2025 version 0.5.10
+0.5.10 2025-09-06
     - MS Windows default font paths
     - check for backslashes
     - disable parser warnings
 
-    02-09-2025 version 0.5.9
+0.5.9 2025-09-02
     - fully qualified GcodeXY declarations
     - cleanup comments
     - more examples
-    
-    01-09-2025 version 0.5.8
+
+0.5.8 2025-09-01
     - add extra default font paths
     - cleanup of font test (use liberation font)
     - complete package name
-    
-    31-8-2025  version 0.5.7
+
+0.5.7 2025-08-31
     - add use statement for perl v5.38.2
     - pod cleanup
 
-    24-8-2025  version 0.5.6
+0.5.6 2025-08-24
     - initial git repo
 

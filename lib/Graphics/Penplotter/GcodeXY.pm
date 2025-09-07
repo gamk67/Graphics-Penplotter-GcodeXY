@@ -1,4 +1,4 @@
-package Graphics::Penplotter::GcodeXY v0.5.11;
+package Graphics::Penplotter::GcodeXY v0.5.12;
 
 use v5.38.2;  # required by List::Util and Term::ANSIcolor (perl testers matrix)
 use strict;
@@ -1366,12 +1366,12 @@ sub _transform {
 sub _printarr {
     my ( $self, $mref, $s ) = @_;
     my @m = @{$mref};
-    print $s . ':' . $EOL;
+    print STDOUT $s . ':' . $EOL;
     foreach my $i ( 0 .. 2 ) {
         foreach my $j ( 0 .. 2 ) {
-            printf '%5.2f ', $m[$i][$j];
+            printf STDOUT '%5.2f ', $m[$i][$j];
         }
-        print $EOL;
+        print STDOUT $EOL;
     }
     return 1;
 }
@@ -1381,11 +1381,11 @@ sub _printarr1 {
     my ( $self, $mref, $s ) = @_;
     my @m   = @{$mref};
     my $len = scalar @m;
-    print $s . ':' . $EOL;
+    print STDOUT $s . ':' . $EOL;
     foreach my $i ( 0 .. $len - 1 ) {
-        printf '%5.2f ', $m[$i];
+        printf STDOUT '%5.2f ', $m[$i];
     }
-    print $EOL;
+    print STDOUT $EOL;
     return 1;
 }
 
@@ -1393,11 +1393,11 @@ sub _printpts {
     my ( $self, $aref, $s ) = @_;
     my @a = @{$aref};
     my $l = scalar @a;
-    print $s . ':' . $EOL . '(';
+    print STDOUT $s . ':' . $EOL . '(';
     foreach my $i ( 0 .. $l - 1 ) {
-        printf '%5.2f ', $a[$i];
+        printf STDOUT '%5.2f ', $a[$i];
     }
-    print ')' . $EOL;
+    print STDOUT ')' . $EOL;
     return 1;
 }
 
@@ -1605,7 +1605,7 @@ sub findfont {
     # otherwise try to find in the list of locations
     for (@locations) {
         $s = $_ . $name;
-        #print "findfont: checking $s\n";
+        #print STDOUT "findfont: checking $s\n";
         if ( -f $s ) { return $s }
     }
     return $EMPTY_STR;
@@ -2006,7 +2006,7 @@ sub _flushHsegments {
     my $d;
     if ( !$len ) {
         if ($self->{check}) {
-            print "*** no hsegments found\n";
+            print STDOUT "*** no hsegments found\n"
         }
         return;
     }
@@ -2050,9 +2050,9 @@ sub _flushHsegments {
 sub _prHsegs {
     my $self = shift;
     my $len  = scalar @{ $self->{hsegments} };
-    print "=====prHsegs: $len entries" . $EOL;
+    print STDOUT "=====prHsegs: $len entries" . $EOL;
     foreach my $i ( 0 .. $len - 1 ) {
-        printf "%s (%5.2f,%5.2f) -> (%5.2f,%5.2f)\n",
+        printf STDOUT "%s (%5.2f,%5.2f) -> (%5.2f,%5.2f)\n",
             $self->{hsegments}[$i]{key},
             $self->{hsegments}[$i]{sx},
             $self->{hsegments}[$i]{sy},
@@ -2147,7 +2147,9 @@ sub _dohatching {
             }
             # when finished, we should have an even number of entries
             if ( $clen % 2 ) {
-                print 'dohatching: odd number of crossings' . $EOL;
+                if ($self->{check}) {
+                    print STDOUT 'dohatching: odd number of crossings' . $EOL
+                }
             }
         }
         # generate segments, store in hsegments using _addhsegmentpath
@@ -2225,7 +2227,9 @@ sub _sameside {
         $y1 = $ay;
     }
     else {
-        print "sameside: cannot determine vertex 1 for $y of $seg1 and $seg2\n";
+        if ($self->{check}) {
+            print STDOUT "sameside: cannot determine vertex 1 for $y of $seg1 and $seg2\n"
+        }
         return -1;
     }
     if ( $cy == $y ) {
@@ -2235,7 +2239,9 @@ sub _sameside {
         $y2 = $cy;
     }
     else {
-        print "sameside: cannot determine vertex 2 for $y of $seg1 and $seg2\n";
+        if ($self->{check}) {
+            print STDOUT "sameside: cannot determine vertex 2 for $y of $seg1 and $seg2\n"
+        }
         return -1;
     }
     if ( $y1 > $y && $y2 > $y ) { return 1 }
@@ -2252,12 +2258,12 @@ sub _prcrossings {
     my $lenc = scalar @cr;
     # debugging:
     if ( $lenc < 3 ) { return 0 }
-    print "crossings for hatchline $hl: $lenc\n";
+    print STDOUT "crossings for hatchline $hl: $lenc\n";
     if ( !$lenc ) { return 0 }
     for my $i ( 0 .. $lenc - 1 ) {
         my $j = $cr[$i]{seg};
-        print '    perc ' . $cr[$i]{perc} . " segment $j: ";
-        printf "%s (%5.2f,%5.2f) -> (%5.2f,%5.2f)\n",
+        print STDOUT '    perc ' . $cr[$i]{perc} . " segment $j: ";
+        printf STDOUT "%s (%5.2f,%5.2f) -> (%5.2f,%5.2f)\n",
             $self->{psegments}[$j]{key},
             $self->{psegments}[$j]{sx},
             $self->{psegments}[$j]{sy},
@@ -2697,13 +2703,17 @@ sub importsvg {
         }
     );
     $first = 1;
-    print "$file:\n";
+    if ($self->{check}) {
+        print STDOUT "$file:\n";
+    }
     $self->gsave();
     $p->parsefile($file) or die "Error $file: ";
     $self->grestore();
     # if we warned about unimpemented tags, print a newline
     if ( !$first ) {
-        print $EOL;
+        if ($self->{check}) {
+            print STDOUT $EOL;
+        }
     }
     return 1;
 }
@@ -2882,11 +2892,15 @@ sub _starttag {
         $svgw = $attr{width};
         $svgh = $attr{height};
         if ( $svgw && $svgh ) {
-            print "SVG size: $svgw x $svgh\n";
+            if ($self->{check}) {
+                print STDOUT "SVG size: $svgw x $svgh\n"
+            }
         }
         $svgvb = $attr{viewBox};
         if ($svgvb) {
-            print "SVG viewbox ignored" . $EOL;
+            if ($self->{check}) {
+                print STDOUT "SVG viewbox ignored" . $EOL
+            }
         }
         return;
     }
@@ -2896,11 +2910,15 @@ sub _starttag {
     }
     # if we get here, we have an unimplemented tag. Generate a warning.
     if ($first) {
-        print "### not implemented: $element";
+        if ($self->{check}) {
+            print STDOUT "### not implemented: $element"
+        }
         $first = 0;
     }
     else {
-        print ", $element";
+        if ($self->{check}) {
+            print STDOUT ", $element"
+        }
     }
     return 1;
 }
@@ -2974,12 +2992,16 @@ sub _dopath {
         # continue bezier s/S command
         # we won't see s or S because of the no_smooth option
         if ( $_->{svg_key} =~ m{\A[sS]\z}i ) {
-            print "path internal error: s or S command found\n";
+            if ($self->{check}) {
+                print STDOUT "path internal error: s or S command found\n"
+            }
         }
         # continue bezier t/T command
         # we won't see t or T because of the no_smooth option
         if ( $_->{svg_key} =~ m{\A[tT]\z}i ) {
-            print "path internal error: t or T command found\n";
+            if ($self->{check}) {
+                print STDOUT "path internal error: t or T command found\n"
+            }
         }
         # arc
         # arc parameters are: rx, ry, x_axis_rotation, large_arc_flag, sweep_flag, x, y
@@ -3413,7 +3435,9 @@ sub exportsvg {
     $miny *= $I2P;
     $maxx *= $I2P;
     $maxy *= $I2P;
-    print "exportsvg: $gcout: bounding box = ($minx,$miny)pt ($maxx,$maxy)pt". $EOL;
+    if ($self->{check}) {
+        print STDOUT "exportsvg: $gcout: bounding box = ($minx,$miny)pt ($maxx,$maxy)pt". $EOL
+    }
     return ($minx, $miny, $maxx, $maxy);
 }
 
@@ -3448,7 +3472,7 @@ sub _parse {
         return ( $G01, $xcoord, $ycoord );
     }
     # the user can insert own instruction, e.g. in header - we should not complain about that
-    # print STDOUT "parse: unknown instruction \"$ss\"";
+    # if ($self->{check}) {print STDOUT "parse: unknown instruction \"$ss\""}
     return ( $NOOP, 0, 0 );
 }
 
@@ -3457,11 +3481,11 @@ sub _parse {
 #
 sub _fprintf {
     my $info = shift;
-    print "$info: ";
+    print STDOUT "$info: ";
     foreach (@_) {
-        printf "%5.2f ", $_;
+        printf STDOUT "%5.2f ", $_
     }
-    print $EOL;
+    print STDOUT $EOL;
     return 1;
 }
 
@@ -3489,7 +3513,7 @@ sub _optimize {
         $tmpy2 = $yd;
         $optline++;
         if ($self->{opt_debug}) {
-            print $EOL;
+            print STDOUT $EOL;
             $self->_prPseg($line+0);
             $self->_prPseg($line+1);
             $self->_prPseg($line+2);
@@ -3510,7 +3534,7 @@ sub _optimize {
         # (2) move from (c,d) to (e,f)
         if ( $self->_pattern10( $line, $rest ) ) {
             if ($self->{opt_debug}) {
-                print "[$optline opt pattern 10] ";
+                print STDOUT "[$optline opt pattern 10] ";
             }
             my $c = $self->{psegments}[ $line + 0 ]{dx};
             my $d = $self->{psegments}[ $line + 0 ]{dy};
@@ -3524,7 +3548,7 @@ sub _optimize {
                 $self->{psegments}[ $line + 0 ]{dy}
             );
             if ($self->{opt_debug}) {
-                print $EOL;
+                print STDOUT $EOL;
             }
             next INSTRUCTION;
         }
@@ -3546,7 +3570,7 @@ sub _optimize {
         # in the wrong place after the delete
         if ( $self->_pattern1( $line, $rest ) ) {
             if ($self->{opt_debug}) {
-                print "[line $optline pattern 1] $EOL";
+                print STDOUT "[line $optline pattern 1] $EOL"
             }
             $tmpx2 = $self->{psegments}[ $line + 2 ]{dx};
             $tmpy2 = $self->{psegments}[ $line + 2 ]{dy};
@@ -3561,7 +3585,7 @@ sub _optimize {
                 # a new optimizable sequence
             $self->_adjust( \$line, \$rest );
             if ($self->{opt_debug}) {
-                print $EOL;
+                print STDOUT $EOL
             }
             next INSTRUCTION;
         }
@@ -3578,7 +3602,7 @@ sub _optimize {
         # this pattern is the result of changes made in pattern 1
         if ( $self->_pattern3( $line, $rest ) ) {
             if ($self->{opt_debug}) {
-                print "[line $optline pattern 3] $EOL";
+                print STDOUT "[line $optline pattern 3] $EOL"
             }
             $self->_keep( \$line, \$rest );    # keep the first draw
             $self->_drop( $line, \$rest );     # get rid of PU
@@ -3586,7 +3610,7 @@ sub _optimize {
             $self->_drop( $line, \$rest );     # get rid of PD
             $self->_adjust( \$line, \$rest );
             if ($self->{opt_debug}) {
-                print $EOL;
+                print STDOUT $EOL
             }
             next INSTRUCTION;
         }
@@ -3609,7 +3633,7 @@ sub _optimize {
         # in the wrong place after the delete
         if ( $self->_pattern2( $line, $rest ) ) {
             if ($self->{opt_debug}) {
-                print "[line $optline pattern 2] $EOL";
+                print STDOUT "[line $optline pattern 2] $EOL"
             }
             $self->_keep( \$line, \$rest );    # flush the first draw
             $self->_drop( $line, \$rest );     # get rid of the first PU
@@ -3642,7 +3666,7 @@ sub _optimize {
             }
             $self->_adjust( \$line, \$rest );
             if ($self->{opt_debug}) {
-                print $EOL;
+                print STDOUT $EOL
             }
             next INSTRUCTION;
         }
@@ -3677,7 +3701,7 @@ sub _optimize {
         #  - copy the source of the first move to the second move
         if ( $self->_pattern11( $line, $rest ) ) {
             if ($self->{opt_debug}) {
-                print "[line $optline pattern 11] $EOL";
+                print STDOUT "[line $optline pattern 11] $EOL"
             }
             $self->{psegments}[ $line + 4 ]{sx} = $self->{psegments}[ $line + 1 ]{sx};
             $self->{psegments}[ $line + 4 ]{sy} = $self->{psegments}[ $line + 1 ]{sy};
@@ -3689,7 +3713,7 @@ sub _optimize {
             $self->_keep( \$line, \$rest );
             $self->_adjust( \$line, \$rest );
             if ($self->{opt_debug}) {
-                print $EOL;
+                print STDOUT $EOL
             }
             next INSTRUCTION;
         }
@@ -3697,13 +3721,13 @@ sub _optimize {
         # Pattern 5: PU/PD. Delete both.
         if ( $self->_pattern5( $line, $rest ) ) {
             if ($self->{opt_debug}) {
-                print "[line $optline pattern 5] $EOL";
+                print STDOUT "[line $optline pattern 5] $EOL"
             }
             $self->_drop( $line, \$rest );
             $self->_drop( $line, \$rest );
             $self->_adjust( \$line, \$rest );
             if ($self->{opt_debug}) {
-                print $EOL;
+                print STDOUT $EOL
             }
             next INSTRUCTION;
         }
@@ -3711,13 +3735,13 @@ sub _optimize {
         # Pattern 8: PD/PU. Delete both.
         if ( $self->_pattern8( $line, $rest ) ) {
             if ($self->{opt_debug}) {
-                print "[line $optline pattern 8] $EOL";
+                print STDOUT "[line $optline pattern 8] $EOL"
             }
             $self->_drop( $line, \$rest );
             $self->_drop( $line, \$rest );
             $self->_adjust( \$line, \$rest );
             if ($self->{opt_debug}) {
-                print $EOL;
+                print STDOUT $EOL
             }
             next INSTRUCTION;
         }
@@ -3725,13 +3749,13 @@ sub _optimize {
         # Pattern 6: PU/PU. Delete one.
         if ( $self->_pattern6( $line, $rest ) ) {
             if ($self->{opt_debug}) {
-                print "[line $optline pattern 6] $EOL";
+                print STDOUT "[line $optline pattern 6] $EOL"
             }
             $self->_drop( $line, \$rest );
             $self->_keep( \$line, \$rest );
             $self->_adjust( \$line, \$rest );
             if ($self->{opt_debug}) {
-                print $EOL;
+                print STDOUT $EOL
             }
             next INSTRUCTION;
         }
@@ -3739,13 +3763,13 @@ sub _optimize {
         # Pattern 7: PD/PD. Delete one.
         if ( $self->_pattern7( $line, $rest ) ) {
             if ($self->{opt_debug}) {
-                print "[line $optline pattern 7] $EOL";
+                print STDOUT "[line $optline pattern 7] $EOL"
             }
             $self->_drop( $line, \$rest );
             $self->_keep( \$line, \$rest );
             $self->_adjust( \$line, \$rest );
             if ($self->{opt_debug}) {
-                print $EOL;
+                print STDOUT $EOL
             }
             next INSTRUCTION;
         }
@@ -3753,12 +3777,12 @@ sub _optimize {
         # Pattern 9: m/l where source and dest are the same. Delete.
         if ( $self->_pattern9( $line, $rest ) ) {
             if ($self->{opt_debug}) {
-                print "[line $optline pattern 9] $EOL";
+                print STDOUT "[line $optline pattern 9] $EOL"
             }
             $self->_drop( $line, \$rest );
             $self->_adjust( \$line, \$rest );
             if ($self->{opt_debug}) {
-                print $EOL;
+                print STDOUT $EOL
             }
             next INSTRUCTION;
         }
@@ -3769,9 +3793,9 @@ sub _optimize {
     } # while
     if ( $self->{check} ) {
         $after = scalar @{ $self->{psegments} };
-        print 'optimization removed '
+        print STDOUT 'optimization removed '
             . ( $before - $after )
-            . " instructions\n";
+            . " instructions\n"
     }
     return 1;
 }
@@ -4011,7 +4035,7 @@ sub _drop {
     my $self = shift;
     my ( $line, $refrest ) = @_;
     if ($self->{opt_debug}) {
-        print "drop ";
+        print STDOUT "drop ";
         $self->_prPseg($line);
     };
     splice @{ $self->{psegments} }, $line, 1;
@@ -4024,7 +4048,7 @@ sub _keep {
     my $self = shift;
     my ( $line, $refrest ) = @_;
     if ($self->{opt_debug}) {
-        print "keep ";
+        print STDOUT "keep ";
         $self->_prPseg(${$line});
     }
     ${$line}    += 1;
@@ -4037,11 +4061,15 @@ sub _prPsegs {
     my $self = shift;
     my $len  = scalar @{ $self->{psegments} };
     if (! $len) {
-        print "_prPsegs: empty segment list$EOL";
+        if ($self->{check}) {
+            print STDOUT "_prPsegs: empty segment list$EOL"
+        }
     }
     foreach my $i ( 0 .. $len - 1 ) {
         $self->_prPseg($i);
-        print $EOL;
+        if ($self->{check}) {
+            print STDOUT $EOL
+        }
     }
     return 1;
 }
@@ -4051,18 +4079,18 @@ sub _prPseg {
     my ( $self, $index ) = @_;
     my $len = scalar @{ $self->{psegments} };
     if ( ($index > $len-1) || (!defined $self->{psegments}[$index]{key})) {
-        print "    UNDEFINED$EOL";
+        print STDOUT "    UNDEFINED$EOL";
         return 0;
     }
     if ( $self->{psegments}[$index]{key} eq 'u' ) {
-        print "    $index: PENUP$EOL";
+        print STDOUT "    $index: PENUP$EOL";
         return 1;
     }
     if ( $self->{psegments}[$index]{key} eq 'd' ) {
-        print "    $index: PENDOWN$EOL";
+        print STDOUT "    $index: PENDOWN$EOL";
         return 1;
     }
-    printf "    %d: %s (%5.2f,%5.2f) -> (%5.2f,%5.2f)$EOL",
+    printf STDOUT "    %d: %s (%5.2f,%5.2f) -> (%5.2f,%5.2f)$EOL",
         $index,
         $self->{psegments}[$index]{key},
         $self->{psegments}[$index]{sx},
@@ -4397,7 +4425,7 @@ sub printcorner {
     my ( $self, $sx, $sy ) = @_;
     foreach my $i ( 0 .. $sx - 1 ) {
         foreach my $j ( 0 .. $sy - 1 ) {
-            print "$i $j      "
+            print STDOUT "$i $j      "
                 . $corner{$i}{$j}{blx}
                 . $SPACE
                 . $corner{$i}{$j}{bly}
