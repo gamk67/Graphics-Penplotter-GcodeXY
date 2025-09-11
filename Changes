@@ -2,7 +2,9 @@ Revision history for Perl extension Graphics-Penplotter-GcodeXY
 
 {{$NEXT}}
 
-0.5.13 2025-09-11
+v0.5.13 2025-09-11T09:44:03Z
+
+ 0.5.13 2025-09-11
     - cpanfile mods for cpan testers
     - debugging code refactoring
 
