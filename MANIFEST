@@ -30,3 +30,4 @@ script/test.yml
 t/00_compile.t
 t/01-gcode.t
 t/02-alphabet.t
+t/data/LiberationSans-Regular.ttf
