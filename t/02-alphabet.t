@@ -2,8 +2,6 @@
 
 use strict;
 use warnings;
-#use Data::Printer;
-use Data::Dumper;
 use Graphics::Penplotter::GcodeXY;
 use Test::Simple 'no_plan';
 use Font::FreeType;

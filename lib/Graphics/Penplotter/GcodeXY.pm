@@ -1,4 +1,4 @@
-package Graphics::Penplotter::GcodeXY v0.5.15;
+package Graphics::Penplotter::GcodeXY v0.5.16;
 
 use v5.38.2;  # required by List::Util and Term::ANSIcolor (perl testers matrix)
 use strict;
