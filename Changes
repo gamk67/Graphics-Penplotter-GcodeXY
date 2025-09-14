@@ -1,6 +1,8 @@
 Revision history for Perl extension Graphics-Penplotter-GcodeXY
 
 {{$NEXT}}
+
+v0.5.16 2025-09-14T10:33:56Z
     - svg test added
     - fixed output bug
     - use File::Spec for font path handling in test code
