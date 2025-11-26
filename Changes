@@ -1,6 +1,8 @@
 Revision history for Perl extension Graphics-Penplotter-GcodeXY
 
 {{$NEXT}}
+
+v0.5.22 2025-11-26T13:04:59Z
     - added stroke() before splitting
     - clean up postscript output
     - added gcodetoeps script
