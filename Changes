@@ -1,6 +1,8 @@
 Revision history for Perl extension Graphics-Penplotter-GcodeXY
 
 {{$NEXT}}
+
+v0.6.3 2026-02-04T11:10:18Z
     - 'ellipse' does not work because of Expat bug
     - using function signatures
     - removed EOL on currentpage, added during output (caused eq to fail)
