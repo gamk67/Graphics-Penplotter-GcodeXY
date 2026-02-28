@@ -42,8 +42,10 @@ t/07-io.t
 t/08-gcodexy_tests.t
 t/09-gcodexy_font_tests.t
 t/10-gcodexy_svg_tests.t
+t/11-polygon_clip.t
 t/data/car-vp.svg
 t/data/LiberationSans-Regular.ttf
 't/data/Test Suite README and Documentation.pdf'
 t/data/test_archive_script.sh
 t/data/test_readme.md
+tags

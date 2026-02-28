@@ -1,0 +1,10 @@
+{
+  // Recommended extensions to improve Perl editing and symbols
+  "recommendations": [
+    "bscan.perlnavigator",        
+    "richterger.perl",
+    "hitode909.perl-outline",
+    "FractalBoy.pls",
+    "jeff-hykin.better-perl-syntax"
+  ]
+}

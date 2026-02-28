@@ -1,4 +1,4 @@
-package Graphics::Penplotter::GcodeXY v0.6.3;   # !! 0.6.0 AI modified
+package Graphics::Penplotter::GcodeXY v0.6.7;
 
 use v5.38.2;  # required by List::Util and Term::ANSIcolor (perl testers matrix)
 use strict;
@@ -10,6 +10,7 @@ use Math::Bezier ();
 use POSIX qw( ceil );
 use Image::SVG::Transform ();
 use Image::SVG::Path qw( extract_path_info );
+use XML::LibXML ();
 use Font::FreeType qw( FT_LOAD_NO_HINTING );
 use List::Util qw( max );
 use Readonly qw( Readonly );
@@ -24,7 +25,11 @@ our @EXPORT_OK = qw(translate translateC stroketextfill stroketext strokefill st
                     polygon penup pendown pageborder exportsvg exporteps output newsegpath
                     movetoR moveto lineR line initmatrix importsvg gsave grestore getsegpath
                     ellipse curveto curve currentpoint boxround boxR box arcto arc addtopage
-                    addfontpath addcomment textwidth arrowhead polygonround vpype_linesort);
+                    addfontpath addcomment textwidth arrowhead polygonround vpype_linesort
+                    polygon_clip polygon_clip_end);
+
+
+############ SECTION: Data Structures and Constants ############
 
 # definition of page sizes in pt, should be Properly Cased
 my %pspaper = (
@@ -240,7 +245,7 @@ sub init ($self) {
     return 1;
 }
 
-#------------------------------------------------------------------------------
+############### SECTION: Graphics State and Transformations ###############
 
 # graphics state manipulation, saving, restoring
 sub gsave ($self) {
@@ -281,7 +286,7 @@ sub grestore ($self) {
     return 1;
 }
 
-#-------------------------------------------------------------------------
+############### SECTION: Paths and Primitives ###############
 
 #
 # Move to a position on the page. Lift the pen first, then lower it on arrival
@@ -396,6 +401,137 @@ sub lineR ($self, $x, $y) {
 #
 # Create a series of consecutive line segments
 #
+ # Hidden-line removal helpers and interface
+sub _bbox_from_points ($self, @pts) {
+    my ($minx, $miny, $maxx, $maxy);
+    $minx = $miny = 1e99;
+    $maxx = $maxy = -1e99;
+    while (@pts) {
+        my $x = shift @pts;
+        my $y = shift @pts;
+        $minx = $x if $x < $minx;
+        $miny = $y if $y < $miny;
+        $maxx = $x if $x > $maxx;
+        $maxy = $y if $y > $maxy;
+    }
+    return ($minx, $miny, $maxx, $maxy);
+}
+
+sub _bbox_intersect ($self, $a, $b) {
+    # each bbox is [minx,miny,maxx,maxy]
+    return !( $a->[2] < $b->[0] || $a->[0] > $b->[2] || $a->[3] < $b->[1] || $a->[1] > $b->[3] );
+}
+
+# point-in-polygon test, used for clipping. 
+# Returns 1 if the point is inside the polygon, 0 otherwise.
+sub _point_in_poly ($self, $px, $py, @poly) {
+    # ray crossing algorithm
+    my $inside = 0;
+    my $n = scalar @poly / 2;
+    return 0 if $n < 3;
+    for (my $i = 0; $i < $n; $i++) {
+        my $xi = $poly[2*$i];
+        my $yi = $poly[2*$i+1];
+        my $j = ($i == 0) ? $n-1 : $i-1;
+        my $xj = $poly[2*$j];
+        my $yj = $poly[2*$j+1];
+        my $intersect = ( ($yi > $py) != ($yj > $py) ) &&
+                        ( $px < ($xj-$xi) * ($py-$yi) / ($yj-$yi + 0.0) + $xi );
+        $inside = !$inside if $intersect;
+    }
+    return $inside ? 1 : 0;
+}
+
+# Clip a polygon to the current clip queue. 
+# The polygon is defined by a list of vertices, starting with (x,y) and followed 
+# by pairs of coordinates.
+sub polygon_clip ($self, $x, $y, @rest) {
+    # Add a polygon to the clip queue and remove parts of previously queued polygons
+    if ( scalar @rest == 0 ) {
+        $self->_croak('bad polygon_clip - no line segments found');
+        return 0;
+    }
+    if ( scalar @rest % 2 ) {
+        $self->_croak('bad polygon_clip - odd number of points');
+        return 0;
+    }
+    # build absolute point list starting with (x,y)
+    my @poly = ($x, $y, @rest);
+    # ensure closed polygon (last point equal first)
+    if ( $poly[-2] != $poly[0] || $poly[-1] != $poly[1] ) {
+        push @poly, $poly[0], $poly[1];
+    }
+    # prepare clip queue
+    $self->{clip_queue} //= [];
+    my ($minx,$miny,$maxx,$maxy) = $self->_bbox_from_points(@poly);
+    my $newbbox = [$minx,$miny,$maxx,$maxy];
+
+    # For each existing polygon in the queue, split and remove subsegments
+    foreach my $old (@{ $self->{clip_queue} }) {
+        next unless $self->_bbox_intersect($old->{bbox}, $newbbox);
+        my @newsegs = ();
+        foreach my $seg (@{ $old->{segs} }) {
+            # collect t values where this seg intersects any edge of new poly
+            my @ts = (0.0, 1.0);
+            for (my $i = 0; $i < @poly-2; $i += 2) {
+                my $x2 = $poly[$i]; my $y2 = $poly[$i+1];
+                my $x3 = $poly[$i+2]; my $y3 = $poly[$i+3];
+                my $t = $self->_getsegintersect( $seg->{sx}, $seg->{sy}, $seg->{dx}, $seg->{dy}, $x2, $y2, $x3, $y3 );
+                if ($t && $t > 0.0 && $t < 1.0) { push @ts, $t }
+            }
+            # unique & sort
+            my %seen; @ts = sort {$a <=> $b} grep { !$seen{sprintf("%.8f",$_)}++ } @ts;
+            # create subsegments
+            for (my $k=0; $k < @ts-1; $k++) {
+                my $t1 = $ts[$k]; my $t2 = $ts[$k+1];
+                my $mx = $seg->{sx} + ($seg->{dx} - $seg->{sx}) * (($t1+$t2)/2.0);
+                my $my = $seg->{sy} + ($seg->{dy} - $seg->{sy}) * (($t1+$t2)/2.0);
+                # if midpoint is inside new polygon, discard
+                if ( $self->_point_in_poly($mx,$my,@poly) ) {
+                    next;
+                }
+                # otherwise keep the subsegment endpoints
+                my $sx = $seg->{sx} + ($seg->{dx} - $seg->{sx}) * $t1;
+                my $sy = $seg->{sy} + ($seg->{dy} - $seg->{sy}) * $t1;
+                my $dx = $seg->{sx} + ($seg->{dx} - $seg->{sx}) * $t2;
+                my $dy = $seg->{sy} + ($seg->{dy} - $seg->{sy}) * $t2;
+                push @newsegs, { sx=>$sx, sy=>$sy, dx=>$dx, dy=>$dy };
+            }
+        }
+        $old->{segs} = [ @newsegs ];
+    }
+
+    # finally, add the new polygon to the queue (store its segments)
+    my @segs = ();
+    for (my $i=0;$i<@poly-2;$i+=2) {
+        my ($sx,$sy) = ($poly[$i], $poly[$i+1]);
+        my ($dx,$dy) = ($poly[$i+2], $poly[$i+3]);
+        push @segs, { sx=>$sx, sy=>$sy, dx=>$dx, dy=>$dy };
+    }
+    push @{ $self->{clip_queue} }, { segs => [ @segs ], bbox => $newbbox };
+    return 1;
+}
+
+# Flush the clip queue into the current path, using _addpath to add segments.
+sub polygon_clip_end ($self) {
+    # flush the clip queue into the current path using _addpath
+    $self->{clip_queue} //= [];
+    foreach my $poly (@{ $self->{clip_queue} }) {
+        foreach my $seg (@{ $poly->{segs} }) {
+            # move to segment start (apply CTM + scaling)
+            $self->penup();
+            $self->_genfastmove( $seg->{sx}, $seg->{sy} );
+            $self->pendown();
+            # draw the segment (apply CTM + scaling)
+            $self->_genslowmove( $seg->{dx}, $seg->{dy} );
+        }
+    }
+    # ensure the path is stroked before we discard the queued polygons
+    $self->stroke();
+    @{ $self->{clip_queue} } = ();
+    return 1;
+}
+
 sub polygon ($self, $x, $y, @rest) {
     if ( scalar @rest == 0 ) {
         $self->_croak('bad polygon - no line segments found');
@@ -1340,7 +1476,8 @@ sub _calc_numsteps ($self, $ra, $rb) {
     return $m_num;
 }
 
-#-----------------------------------------------------------------
+################ Section: Fonts ###############
+
 # Font handling
 #
 
@@ -1570,7 +1707,7 @@ sub _in_unitfied ($self, $p) {
     return $p * $inches_to_unit{$self->{units}}
 }
 
-#--------------------------------------------------------------------
+################ Section: Segments ###############
 
 # segments
 
@@ -1669,6 +1806,8 @@ sub _closepath ($self) {
 
 #
 # add to the segment path
+# this routine is the main way that line segments are added to the path,
+# and is used by moveto, lineto, and closepath.
 #
 sub _addpath ($self, $key, $sx, $sy, $dx, $dy) {
     my $len  = scalar @{ $self->{psegments} };
@@ -1804,7 +1943,7 @@ sub _get_bbox ($self) {
     return ( $minx, $miny, $maxx, $maxy );
 }
 
-#--------------------------------------------------------------------
+################## Section: Hatching ###############
 
 # hatching
 
@@ -2091,7 +2230,7 @@ sub strokefill ($self) {
     return 1;
 }
 
-#-------------------------------------------------------------------
+############### Section: Gcode generation ###############
 
 #
 # Lift the pen
@@ -2148,9 +2287,6 @@ sub output ($self, $file = undef) {
     }
     return 1;
 }
-
-#-------------------------------------------------------------------------------
-# PRIVATE methods
 
 #
 # print statistics about the gcode program
@@ -2437,7 +2573,105 @@ my $best_fit = 'size too big for 4A0 portrait!';
     return 1;
 }
 
-#---------------------------------------------------------------------------------
+################ Section: SVG input, processing and output ###############
+
+# SVG output
+sub exportsvg ($self, $gcout = undef) {
+    if (!$gcout) { die 'exportsvg: output filename not provided' }
+    my $op    = $EMPTY_STR;   # current op
+    my $xn    = $EMPTY_STR;   # current x coord
+    my $yn    = $EMPTY_STR;   # current y coord
+    my $maxx  = 0.0;
+    my $maxy  = 0.0;
+    my $minx  = $BBMAX;
+    my $miny  = $BBMAX;
+    my $linecount = 0;
+    my ( $x, $y, $line, $st );
+    $self->_flushPsegments();
+    my $limit = scalar @{ $self->{currentpage} };
+    if (! $limit) {
+        croak "exportsvg: $gcout: empty queue. Aborting.";
+        return 0;
+    }
+    open( my $out, '>', $gcout ) or croak "exportsvg: cannot open output file $gcout";
+    # process the gcode header
+    HEADER:
+    while (1) {
+        $linecount++;
+        $line = $self->{currentpage}[ $linecount - 1 ];
+        last HEADER
+            if ( $line eq $self->{penupcmd} );     # added by openpage()
+    }
+    # collect the SVG output
+    $st = $EMPTY_STR;
+    while ( $linecount < $limit ) {
+        $linecount++;
+        $line = $self->{currentpage}[ $linecount - 1 ];
+        ( $op, $xn, $yn ) = $self->_parse($line);    # xn and yn in inches
+        # bounding box
+        if ( $op eq $G00 || $op eq $G01 ) {
+            $x = 0.0 + $xn;
+            $y = 0.0 + $yn;
+            if ( $x > $maxx ) { $maxx = $x }
+            if ( $y > $maxy ) { $maxy = $y }
+            if ( $x < $minx ) { $minx = $x }
+            if ( $y < $miny ) { $miny = $y }
+        }
+        # now the SVG path
+        if ( $op eq $G01 ) { # the most common case
+            $st .= 'L' 
+                . ($xn * $I2P)
+                . $SPACE 
+                . ($yn * $I2P) 
+                . $SPACE
+        }
+        elsif ( $op eq $G00 ) {
+            $st .= 'M'
+                . ($xn * $I2P)
+                . $SPACE
+                . ($yn * $I2P)
+                . $SPACE
+        }
+        # ignore PU and PD
+    }
+    # now print the output:
+    # first the header
+    my $hdr = "<svg". $EOL;
+                $hdr .= "xmlns='http://www.w3.org/2000/svg'>" . $EOL;
+                $hdr .= "<path style='fill:white; fill-opacity:0; stroke:black; " . $EOL;
+                $hdr .= "stroke-opacity:1; stroke-width: 0.5'" . $EOL;
+                $hdr .= "d=\"";
+    print {$out} $hdr;
+
+    # body, split long lines
+    my $max_length = 120;
+    while (length($st) > $max_length) {
+        my $chunk = substr($st, 0, $max_length);
+        my $break_point = rindex($chunk, ' ');    # find a space on the right
+        if ($break_point == -1) {    # if there isn't, just print it
+            $break_point = $max_length;
+        }
+        my $line = substr($st, 0, $break_point, '');
+        print {$out} $line, $EOL;
+        $st =~ s/^\s+//;  # trim leading spaces
+    }
+    print {$out} $st, $EOL if $st;  # any remaining chars 
+
+    # trailer
+    my $trl = "\"/></svg> ";
+    print {$out} $trl . $EOL;
+    # finished
+    close $out;
+    # print the bounding box
+    $minx *= $I2P;
+    $miny *= $I2P;
+    $maxx *= $I2P;
+    $maxy *= $I2P;
+    if ($self->{check}) {
+        print STDOUT "exportsvg: $gcout: bounding box = ($minx,$miny)pt ($maxx,$maxy)pt". $EOL
+    }
+    return ($minx, $miny, $maxx, $maxy);
+}
 
 # SVG input
 
@@ -2467,25 +2701,48 @@ sub _svgconvert ($self, $value) {
 
 # import the svg
 sub importsvg ($self, $file) {
-    use XML::Parser ();
-    my $p = XML::Parser->new(
-        Handlers => {
-            Start => sub { $self->_starttag(@_) },
-            End   => sub { $self->_endtag(@_) }
-        }
-    );
+    eval { require XML::LibXML; XML::LibXML->import(); 1 } or do {
+        $self->_croak("XML::LibXML is required to import SVG files: $@")
+    };
+    my $parser = XML::LibXML->new();
+    my $doc;
+    eval { $doc = $parser->load_xml( location => $file ); 1 } or do {
+        $self->_croak("XML parse error in $file: $@");
+    };
+
     $first = 1;
     if ($self->{check}) {
         print STDOUT "$file:" . $EOL;
     }
     $self->gsave();
-    $p->parsefile($file) or die "XML Parse Error in $file: ";
+
+    my $root = $doc->documentElement();
+    $self->_traverse_libxml($root);
+
     $self->grestore();
-    # if we warned about unimpemented tags, print a newline
+    # if we warned about unimplemented tags, print a newline
     if ( !$first ) {
         if ($self->{check}) {
             print STDOUT $EOL;
         }
+    }
+    return 1;
+}
+
+# recursive traversal of XML::LibXML nodes
+sub _traverse_libxml ($self, $node) {
+    return unless $node;
+    for my $child ($node->childNodes) {
+        # element nodes only (nodeType 1)
+        next unless $child->nodeType && $child->nodeType == 1;
+        my $ename = $child->localname;
+        my %attr;
+        for my $a ($child->attributes) {
+            $attr{ $a->nodeName } = $a->value;
+        }
+        $self->_starttag( undef, $ename, %attr );
+        $self->_traverse_libxml($child);
+        $self->_endtag( undef, $ename, %attr );
     }
     return 1;
 }
@@ -2612,7 +2869,6 @@ sub _starttag ($self, $expat, $element, %attr) {
         return;
     }
     # ellipse tag
-    # !! does not currently work because of Expat bug - rx and ry not found
     if ( $element eq 'ellipse' ) {
         my $cx = $attr{cx};
         if (! defined $cx ) {
@@ -2627,7 +2883,7 @@ sub _starttag ($self, $expat, $element, %attr) {
         }
         $cy = $self->_svgconvert($cy);
         my $rx = $attr{rx};
-        if (defined $rx ) {
+        if (! defined $rx ) {
             $self->_croak('ellipse: rx attribute missing');
             return;
         }
@@ -3047,7 +3303,7 @@ sub _a2c ($self, $x1, $y1, $rx, $ry, $phi, $fa, $fs, $x2, $y2) {
     return 1;
 }
 
-#------------------------------------------------------------------------------------
+################# Section: Postscript output ##################
 
 # Postscript output
 sub exporteps ($self, $gcout = undef) {
@@ -3175,104 +3431,6 @@ sub exporteps ($self, $gcout = undef) {
     return 1;
 }
 
-# SVG output
-sub exportsvg ($self, $gcout = undef) {
-    if (!$gcout) { die 'exportsvg: output filename not provided' }
-    my $op    = $EMPTY_STR;   # current op
-    my $xn    = $EMPTY_STR;   # current x coord
-    my $yn    = $EMPTY_STR;   # current y coord
-    my $maxx  = 0.0;
-    my $maxy  = 0.0;
-    my $minx  = $BBMAX;
-    my $miny  = $BBMAX;
-    my $linecount = 0;
-    my ( $x, $y, $line, $st );
-    $self->_flushPsegments();
-    my $limit = scalar @{ $self->{currentpage} };
-    if (! $limit) {
-        croak "exportsvg: $gcout: empty queue. Aborting.";
-        return 0;
-    }
-    open( my $out, '>', $gcout ) or croak "exportsvg: cannot open output file $gcout";
-    # process the gcode header
-    HEADER:
-    while (1) {
-        $linecount++;
-        $line = $self->{currentpage}[ $linecount - 1 ];
-        last HEADER
-            if ( $line eq $self->{penupcmd} );     # added by openpage()
-    }
-    # collect the SVG output
-    $st = $EMPTY_STR;
-    while ( $linecount < $limit ) {
-        $linecount++;
-        $line = $self->{currentpage}[ $linecount - 1 ];
-        ( $op, $xn, $yn ) = $self->_parse($line);    # xn and yn in inches
-        # bounding box
-        if ( $op eq $G00 || $op eq $G01 ) {
-            $x = 0.0 + $xn;
-            $y = 0.0 + $yn;
-            if ( $x > $maxx ) { $maxx = $x }
-            if ( $y > $maxy ) { $maxy = $y }
-            if ( $x < $minx ) { $minx = $x }
-            if ( $y < $miny ) { $miny = $y }
-        }
-        # now the SVG path
-        if ( $op eq $G01 ) { # the most common case
-            $st .= 'L' 
-                . ($xn * $I2P)
-                . $SPACE 
-                . ($yn * $I2P) 
-                . $SPACE
-        }
-        elsif ( $op eq $G00 ) {
-            $st .= 'M'
-                . ($xn * $I2P)
-                . $SPACE
-                . ($yn * $I2P)
-                . $SPACE
-        }
-        # ignore PU and PD
-    }
-    # now print the output:
-    # first the header
-    my $hdr = "<svg". $EOL;
-                $hdr .= "xmlns='http://www.w3.org/2000/svg'>" . $EOL;
-                $hdr .= "<path style='fill:white; fill-opacity:0; stroke:black; " . $EOL;
-                $hdr .= "stroke-opacity:1; stroke-width: 0.5'" . $EOL;
-                $hdr .= "d=\"";
-    print {$out} $hdr;
-
-    # body, split long lines
-    my $max_length = 120;
-    while (length($st) > $max_length) {
-        my $chunk = substr($st, 0, $max_length);
-        my $break_point = rindex($chunk, ' ');    # find a space on the right
-        if ($break_point == -1) {    # if there isn't, just print it
-            $break_point = $max_length;
-        }
-        my $line = substr($st, 0, $break_point, '');
-        print {$out} $line, $EOL;
-        $st =~ s/^\s+//;  # trim leading spaces
-    }
-    print {$out} $st, $EOL if $st;  # any remaining chars 
-
-    # trailer
-    my $trl = "\"/></svg> ";
-    print {$out} $trl . $EOL;
-    # finished
-    close $out;
-    # print the bounding box
-    $minx *= $I2P;
-    $miny *= $I2P;
-    $maxx *= $I2P;
-    $maxy *= $I2P;
-    if ($self->{check}) {
-        print STDOUT "exportsvg: $gcout: bounding box = ($minx,$miny)pt ($maxx,$maxy)pt". $EOL
-    }
-    return ($minx, $miny, $maxx, $maxy);
-}
-
 # parsing of instruction
 sub _parse ($self, $ss) {
     my ( $opp, $x, $xcoord, $y, $ycoord, $rest );
@@ -3319,7 +3477,7 @@ sub _fprintf ($info, @args) {
     return 1;
 }
 
-#----------------------------------------------------------------------------------
+################# Section: Optimizer ##################
 
 my $optline = 0;
 
@@ -3891,7 +4049,7 @@ sub _prPseg ($self, $index) {
     return 1;
 }
 
-#----------------------------------------------------------------------------------
+################# Section: Sheet cutting ##################
 
 # code for cutting up a sheet into multiple smaller ones
 
@@ -4223,7 +4381,7 @@ sub printcorner ($self, $sx, $sy) {
     return 1;
 }
 
-#---------------------------------------------------------------------------------
+#################### Section: vpype interface ####################
 
 # vpype interface
 
@@ -4295,11 +4453,9 @@ sub getsegpath ($self) {
     return @{ $self->{psegments} };
 }
 
-1;
-
 __END__
 
-#----------------------------------------------------------------------------------
+#################### Section: Documentation ####################
 
 # the rest is the perldoc for this module
 
@@ -4453,6 +4609,7 @@ Example:
 =back
 
 =cut
+1;
 
 =head1 OBJECT METHODS
 
@@ -4684,6 +4841,23 @@ Inserts the pendown command, causing the pen to be lowered onto the paper.
 
 Inserts the penup command, causing the pen to be lifted from the paper.
 
+=item polygon_clip(x1,y1, x2,y2, ..., xn,yn)
+
+Add a polygon to an internal clipping queue for hidden-line removal. Polygons added
+with C<polygon_clip> are not immediately emitted to the current path; instead they are
+kept in a queue. When a new polygon overlaps previously queued polygons, any parts
+of the previously queued polygons that lie underneath the new polygon are removed.
+
+The method accepts the same parameters as C<polygon> (a list of coordinate pairs).
+Returns 1 on success.
+
+=item polygon_clip_end()
+
+Flush the internal clipping queue into the current segment path. Remaining visible
+segments from previously queued polygons are emitted into the current path using
+the existing C<_addpath> mechanism (moveto/lineto entries). The clip queue is
+cleared. Returns 1 on success.
+
 =item polygon(x1,y1, x2,y2, ..., xn,yn)
 
 The C<polygon> method is multi-function, allowing many shapes to be created and
@@ -4824,3 +4998,5 @@ This program is free software; you can redistribute it and/or modify it under th
 as Perl itself.
 
 =cut
+
+1;
