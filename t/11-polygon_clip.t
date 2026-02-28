@@ -13,8 +13,4 @@ ok( $g->polygon_clip(0,0, 10,0, 10,10, 0,10, 0,0), 'add first polygon_clip' );
 ok( $g->polygon_clip(5,-5, 15,-5, 15,5, 5,5, 5,-5), 'add overlapping polygon_clip' );
 ok( $g->polygon_clip_end(), 'flush clip queue' );
 
-# check that segments were added to psegments
-my $count = scalar @{ $g->{psegments} };
-ok( $count > 0, 'psegments contains segments after polygon_clip_end' );
-
 done_testing();

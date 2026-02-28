@@ -365,6 +365,23 @@ error condition (e.g. insufficient arguments).
 
     Inserts the penup command, causing the pen to be lifted from the paper.
 
+- polygon\_clip(x1,y1, x2,y2, ..., xn,yn)
+
+    Add a polygon to an internal clipping queue for hidden-line removal. Polygons added
+    with `polygon_clip` are not immediately emitted to the current path; instead they are
+    kept in a queue. When a new polygon overlaps previously queued polygons, any parts
+    of the previously queued polygons that lie underneath the new polygon are removed.
+
+    The method accepts the same parameters as `polygon` (a list of coordinate pairs).
+    Returns 1 on success.
+
+- polygon\_clip\_end()
+
+    Flush the internal clipping queue into the current segment path. Remaining visible
+    segments from previously queued polygons are emitted into the current path using
+    the existing `_addpath` mechanism (moveto/lineto entries). The clip queue is
+    cleared. Returns 1 on success.
+
 - polygon(x1,y1, x2,y2, ..., xn,yn)
 
     The `polygon` method is multi-function, allowing many shapes to be created and
