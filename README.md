@@ -51,6 +51,13 @@ need `Image::SVG::Transform` and `XML::Parser` and `Image::SVG::Path` and `POSIX
 
         Specifies the spacing of the hatching lines.
 
+    - hatchangle
+
+        Specifies the angle of the hatching lines in degrees.  `0` (the default)
+        gives horizontal lines; `90` gives vertical lines; `45` gives diagonal
+        lines running from lower-left to upper-right.  Positive values rotate the
+        lines counter-clockwise.
+
     - header
 
         Specifies a header to be inserted at the start of the output file. The default is
@@ -445,6 +452,12 @@ error condition (e.g. insufficient arguments).
 
     When hatching, the space between hatch lines is set to `width`.
 
+- sethatchangle(degrees)
+
+    Set the angle of the hatch lines.  `0` (the default) gives horizontal
+    lines; `90` gives vertical lines.  See also the `hatchangle` constructor
+    argument.
+
 - skewX(degrees)
 
     Schedule a skew (also called shear) in the X direction. This operation works relative to the
@@ -509,6 +522,17 @@ error condition (e.g. insufficient arguments).
 As noted above, the SVG specification (900 pages) is only partially implemented, and just one layer
 can be used. I suspect that diagnostics about pen travel distance may not always be correct.
 Clipping is not supported. Layering is not supported officially, but can be simulated.
+
+# SEE ALSO
+
+[Graphics::Penplotter::GcodeXY::Geometry2D](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3AGeometry2D),
+[Graphics::Penplotter::GcodeXY::Postscript](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3APostscript),
+[Graphics::Penplotter::GcodeXY::SVG](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3ASVG),
+[Graphics::Penplotter::GcodeXY::Split](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3ASplit),
+[Graphics::Penplotter::GcodeXY::Hatch](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3AHatch),
+[Graphics::Penplotter::GcodeXY::Font](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3AFont),
+[Graphics::Penplotter::GcodeXY::Vpype](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3AVpype),
+[Graphics::Penplotter::GcodeXY::Optimize](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3AOptimize)
 
 # AUTHOR
 

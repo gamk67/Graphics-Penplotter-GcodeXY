@@ -1,4 +1,4 @@
-package Graphics::Penplotter::GcodeXY::Hatch v0.7.1;
+package Graphics::Penplotter::GcodeXY::Hatch v0.7.2;
 
 use v5.38.2;
 use feature qw( signatures );
@@ -419,7 +419,7 @@ and stored in a temporary array, which is swapped into C<$self-E<gt>{psegments}>
 
 The bounding box, scanline sweep, intersection tests (C<_getsegintersect>),
 and vertex deduplication (C<_identical>, C<_sameside>) all run unchanged on
-the rotated copy — they always see horizontal scanlines and need no
+the rotated copy, they always see horizontal scanlines and need no
 modification.
 
 =item 3.

@@ -1,4 +1,4 @@
-package Graphics::Penplotter::GcodeXY::Optimize v0.7.1;
+package Graphics::Penplotter::GcodeXY::Optimize v0.7.2;
 
 use v5.38.2;
 use feature qw( signatures );
@@ -532,26 +532,26 @@ The PU/move/PD triple is deleted.
 
 =item Pattern 2
 
-A line followed by PU/move/PD/line(back)/PU — a pen lifted unnecessarily.
+A line followed by PU/move/PD/line(back)/PU, a pen lifted unnecessarily.
 Merged into two consecutive lines.
 
 =item Patterns 4 and 11
 
-Two consecutive fast-move triples (PU/move/PD) — pattern 4 deletes the
+Two consecutive fast-move triples (PU/move/PD), pattern 4 deletes the
 second when both land at the same point; pattern 11 merges them when they
 differ.
 
 =item Patterns 5 and 8
 
-Adjacent PU/PD or PD/PU pairs — both deleted.
+Adjacent PU/PD or PD/PU pairs, both deleted.
 
 =item Patterns 6 and 7
 
-Adjacent PU/PU or PD/PD pairs — one deleted.
+Adjacent PU/PU or PD/PD pairs, one deleted.
 
 =item Pattern 9
 
-A move or line whose source and destination are identical — deleted.
+A move or line whose source and destination are identical, deleted.
 
 =back
 

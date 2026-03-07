@@ -1,4 +1,4 @@
-package Graphics::Penplotter::GcodeXY::SVG v0.7.1;
+package Graphics::Penplotter::GcodeXY::SVG v0.7.2;
 
 use v5.38.2;
 use feature qw( signatures );
