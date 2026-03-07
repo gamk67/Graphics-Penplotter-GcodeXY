@@ -1,10 +1,14 @@
 Revision history for Perl extension Graphics-Penplotter-GcodeXY
-    - added clipping, pod, test file
 {{$NEXT}}
-
+    - major code refactoring (Claude)
+    - improved SVG input (Claude)
+    - improved postscript output, bug fixes (Claude)
+    - improved circle segmentation (Claude)
+    - hatching at an angle (Claude)
 v0.6.7 2026-02-28T13:33:12Z
-    - replaced Expat with libXML to avoid ellipse bug
-    - ellipse added to tests
+    - added clipping, pod, test file (Claude)
+    - replaced Expat with libXML to avoid ellipse bug (Claude)
+    - ellipse added to tests (Claude)
 v0.6.3 2026-02-04T11:10:18Z
     - 'ellipse' does not work because of Expat bug
     - using function signatures

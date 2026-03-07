@@ -1,0 +1,15 @@
+{
+  "name": "gcodexy",
+  "files": [
+    {
+      "directory": ".",
+      "filters": ["*.pm"],
+      "recursive": false
+    },
+    {
+      "directory": "GcodeXY",
+      "filters": ["*.pm"],
+      "recursive": false
+    }
+  ]
+}

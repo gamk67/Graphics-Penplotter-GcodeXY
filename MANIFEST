@@ -16,8 +16,15 @@ examples/pythagoras.pl
 examples/svgimport.pl
 examples/triangles.pl
 INSTALL
-lib/Graphics/Penplotter/.vstags
 lib/Graphics/Penplotter/GcodeXY.pm
+lib/Graphics/Penplotter/GcodeXY/Font.pm
+lib/Graphics/Penplotter/GcodeXY/Geometry2D.pm
+lib/Graphics/Penplotter/GcodeXY/Hatch.pm
+lib/Graphics/Penplotter/GcodeXY/Optimize.pm
+lib/Graphics/Penplotter/GcodeXY/Postscript.pm
+lib/Graphics/Penplotter/GcodeXY/Split.pm
+lib/Graphics/Penplotter/GcodeXY/SVG.pm
+lib/Graphics/Penplotter/GcodeXY/Vpype.pm
 LICENSE
 MANIFEST			This list of files
 META.json
@@ -43,6 +50,9 @@ t/08-gcodexy_tests.t
 t/09-gcodexy_font_tests.t
 t/10-gcodexy_svg_tests.t
 t/11-polygon_clip.t
+t/12-eps.t
+t/13-svg.t
+t/14-hatch.t
 t/data/car-vp.svg
 t/data/LiberationSans-Regular.ttf
 't/data/Test Suite README and Documentation.pdf'

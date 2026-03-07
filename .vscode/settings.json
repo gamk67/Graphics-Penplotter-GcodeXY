@@ -1,7 +1,0 @@
-{
-    "files.associations": {
-        "*.pm": "perl",
-        "*.t": "perl"
-    }
-    ,"perl.ctagsFile": "tags"
-}
