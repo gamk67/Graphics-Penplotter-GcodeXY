@@ -1,4 +1,3 @@
-[![Actions Status](https://github.com/gamk67/Graphics-Penplotter-GcodeXY/actions/workflows/test.yml/badge.svg)](https://github.com/gamk67/Graphics-Penplotter-GcodeXY/actions)
 # NAME
 
 GcodeXY - Produce gcode files for pen plotters from Perl
@@ -517,15 +516,307 @@ error condition (e.g. insufficient arguments).
     of fonts and other shapes has been performed. In the process, two temporary files will be created
     and destroyed.
 
+# 3D METHODS
+
+## SYNOPSIS
+
+    $g->gsave();                              # saves both 2-D and 3-D state
+    $g->initmatrix3();                        # reset 3-D CTM
+    $g->translate3(50, 50, 0);                # move 3-D origin
+    $g->rotate3(axis => [0,0,1], deg => 45);  # spin around Z
+    $g->scale3(10);                           # uniform scale
+
+    my $m = $g->sphere(0, 0, 0, 1, 12, 24);   # UV sphere mesh
+    my $s = $g->flatten_to_2d($m);            # project to 2-D edge list
+    $g->draw_polylines($s);                   # draw via host pen hooks
+
+    $g->grestore();
+    $g->output('myplot.gcode');
+
+## CTM and transforms
+
+- initmatrix3()
+
+    Reset the 3-D CTM to identity.
+
+- translate3($tx, $ty \[, $tz\])
+
+    Pre-multiply the 3-D CTM by a translation.
+
+- translateC3()
+
+    Move the 3-D origin to the current 3-D position, then reset the position
+    to (0,0,0).
+
+- scale3($sx \[, $sy \[, $sz\]\])
+
+    Pre-multiply by a scale matrix.  If `$sy`/`$sz` are omitted they default
+    to `$sx` (uniform scale).
+
+- rotate3(axis => \[$ax,$ay,$az\], deg => $angle)
+
+    Pre-multiply by a rotation around an arbitrary axis.
+
+- rotate3\_euler($rx, $ry, $rz \[, $order\])
+
+    Pre-multiply by a sequence of axis-aligned rotations.  `$order` is a
+    three-character string such as `'XYZ'` (default).
+
+- compose\_matrix($aref, $bref)
+
+    Multiply two 4x4 matrices; returns a new matrix ref.  Neither input is
+    modified.
+
+- invert\_matrix($mref)
+
+    Invert a 4x4 matrix (Gauss-Jordan with partial pivoting).  Returns a matrix
+    ref, or `undef` if the matrix is singular.
+
+## 3-D current point
+
+- currentpoint3()
+
+    Return the current 3-D position as a list `($x, $y, $z)`.
+
+- currentpoint3($x, $y, $z)
+
+    Set the current 3-D position.
+
+## Point transformation
+
+- transform\_point($pt\_ref)
+
+    Transform a point (arrayref `[$x,$y,$z]`) through the current CTM3.
+    Returns `($tx, $ty, $tz)`.
+
+- transform\_points($pts\_ref)
+
+    Transform an arrayref of points; returns an arrayref of `[$tx,$ty,$tz]`.
+
+## 3-D drawing primitives
+
+- moveto3($x, $y \[, $z\])
+
+    Lift the pen, fast-move to the projected 2-D position, lower pen.
+
+- movetoR3($dx, $dy \[, $dz\])
+
+    Relative `moveto3` from the current 3-D position.
+
+- line3($x1,$y1,$z1 \[, $x2,$y2,$z2\])
+
+    Six-arg form: move to start, draw to end.
+    Three-arg form: draw from the current position.
+
+- lineR3($dx, $dy \[, $dz\])
+
+    Relative line from the current 3-D position.
+
+- polygon3(x1,y1,z1, ...)
+
+    Move to the first triple, draw through the remaining triples.
+
+- polygon3C(x1,y1,z1, ...)
+
+    Like `polygon3` but automatically closes back to the first point.
+
+- polygon3R(dx1,dy1,dz1, ...)
+
+    Like `polygon3` but each triple is relative to the preceding point.
+
+## Wireframe solid drawing (draw directly, no mesh returned)
+
+- box3($x1,$y1,$z1, $x2,$y2,$z2)
+
+    Draw a wireframe axis-aligned box between two opposite corners.
+
+- cube($cx,$cy,$cz,$side)
+
+    Draw a wireframe cube centred at `(cx,cy,cz)`.
+
+- axis\_gizmo($cx,$cy,$cz \[, $len \[, $cone\_r \[, $cone\_h\]\]\])
+
+    Draw three labelled axis arrows (X, Y, Z) as wireframe lines with small
+    arrow cones.  `$len` is the total axis length (default 1).  The cone
+    radius and height default to 5% and 15% of `$len` respectively.
+
+## Mesh-returning solid primitives
+
+All of the following return a mesh structure
+`{ verts => \@v, faces => \@f }` which can be passed to
+`flatten_to_2d`, `hidden_line_remove`, `mesh_to_obj`, etc.
+
+- mesh($verts\_ref, $faces\_ref)
+
+    Low-level constructor.  Build a mesh from existing arrays.
+
+- prism($cx,$cy,$cz, $w,$h,$d)
+
+    Axis-aligned rectangular prism (box) centred at `(cx,cy,cz)`, with
+    dimensions `w` (X), `h` (Y), `d` (Z).  A cube is `prism` with
+    `w == h == d`.  Returns a closed 12-face triangulated mesh.
+
+- sphere($cx,$cy,$cz, $r \[, $lat \[, $lon\]\])
+
+    UV-sphere mesh.  `$lat` and `$lon` control the tessellation density
+    (defaults 12 and 24).
+
+- icosphere($cx,$cy,$cz, $r \[, $subdivisions\])
+
+    Icosphere mesh built by repeated midpoint subdivision of a regular
+    icosahedron.  `$subdivisions` defaults to 2 (320 faces).  Produces a more
+    uniform tessellation than `sphere`.
+
+- cylinder($base\_ref, $top\_ref, $r \[, $seg\])
+
+    Cylinder mesh.  `$base_ref` and `$top_ref` are `[$x,$y,$z]` centre
+    points.  Side walls only; no end caps.
+
+- frustum($cx,$cy,$cz, $r\_bot,$r\_top,$height \[, $seg\])
+
+    General truncated cone (frustum) centred at `(cx,cy,cz)`.  Both end caps
+    are included.  When `$r_top == 0` this is a cone; when
+    `$r_bot == $r_top` it is a closed cylinder.
+
+- cone($cx,$cy,$cz, $r,$height \[, $seg\])
+
+    Convenience wrapper: `frustum` with `r_top = 0`.
+
+- capsule($cx,$cy,$cz, $r,$height \[, $seg\_r \[, $seg\_h\]\])
+
+    Cylinder with hemispherical end caps.  `$height` is the length of the
+    cylindrical body (not counting the caps).  `$seg_r` is the number of
+    radial segments (default 16); `$seg_h` is the number of latitudinal
+    segments per hemisphere (default 8).
+
+- plane($cx,$cy,$cz, $w,$h \[, $segs\_w \[, $segs\_h\]\])
+
+    Flat rectangular mesh in the XY plane, centred at `(cx,cy,cz)`.
+    Dimensions `$w` x `$h`; subdivided into `$segs_w` x `$segs_h` quads.
+    Useful for floors, billboards, and UI surfaces.
+
+- torus($cx,$cy,$cz, $R,$r \[, $maj\_seg \[, $min\_seg\]\])
+
+    Torus mesh in the XY plane.  `$R` is the major radius (centre of tube to
+    centre of torus); `$r` is the minor radius (tube radius).  Defaults:
+    24 major segments, 12 minor segments.
+
+- disk($cx,$cy,$cz, $r \[, $seg\])
+
+    Flat circular disk mesh in the XY plane.  Fan-triangulated from the centre.
+    Vertex 0 is the centre; vertices `1..$seg` are the rim.
+
+- pyramid($cx,$cy,$cz, $r,$height \[, $sides\])
+
+    Regular-polygon-base pyramid.  `(cx,cy,cz)` is the base centre; `$r` is
+    the base circumradius; `$height` is the height in +Z.  `$sides` defaults
+    to 4 (square pyramid).  The base cap is included.
+
+## Quaternions
+
+- quat\_from\_axis\_angle($axis\_ref, $deg)
+
+    Return a unit quaternion `[$w,$x,$y,$z]`.
+
+- quat\_to\_matrix($q)
+
+    Convert a quaternion to a 4x4 rotation matrix.
+
+- quat\_slerp($q1, $q2, $t)
+
+    Spherical linear interpolation (0 <= t <= 1).
+
+## Mesh utilities
+
+- bbox3($mesh\_or\_pts)
+
+    Returns `([$minx,$miny,$minz], [$maxx,$maxy,$maxz])`.
+
+- compute\_normals($mesh)
+
+    Compute face and averaged vertex normals in-place; returns `$mesh`.
+
+## Visibility
+
+- backface\_cull($mesh \[, view\_dir => \\@dir\])
+
+    Return arrayref of visible face indices.  Default view direction `[0,0,-1]`.
+
+- occlusion\_clip($mesh \[, res => N\])
+
+    Z-buffer rasterisation; returns arrayref of `[[p1,p2],...]` edge segments.
+
+- hidden\_line\_remove($mesh \[, %opts\])
+
+    Back-face cull then occlusion clip; returns edge segments.
+
+## 2-D output
+
+- flatten\_to\_2d($mesh\_or\_polylines)
+
+    Project mesh edges or pass-through polylines; returns `[[$p1,$p2],...]`.
+
+- draw\_polylines($segs\_ref)
+
+    Emit segments via the host's pen hooks; calls `stroke()` at the end.
+
+- project\_to\_svg($obj \[, %opts\])
+
+    Return an SVG string of the projected edges.
+
+## Mesh I/O
+
+- mesh\_to\_obj($mesh \[, $name\])
+
+    Serialise to ASCII OBJ string.
+
+- mesh\_from\_obj($str)
+
+    Parse an ASCII OBJ string; returns a mesh.
+
+- mesh\_to\_stl($mesh \[, $name\])
+
+    Serialise to ASCII STL string.
+
+- mesh\_from\_stl($str)
+
+    Parse an ASCII STL string; returns a mesh (vertices are de-duplicated).
+
+## Numeric configuration
+
+- set\_tolerance($eps)>, get\_tolerance()
+
+    Set/get the floating-point equality tolerance (default 1e-9).
+
+- set\_units($units)
+
+    Store a units tag (e.g. `'mm'`); no automatic scaling is applied.
+
+- set\_coordinate\_convention(handedness => ..., euler\_order => ...)
+
+    Store convention tags for downstream use.
+
+## Mesh representation
+
+All solid primitives that return a mesh use the structure:
+
+    { verts => \@v, faces => \@f }
+
+where `@v` is an array of `[$x,$y,$z]` position arrayrefs and `@f` is
+an array of `[$i0,$i1,$i2]` triangle index arrayrefs.  Winding order is
+counter-clockwise when viewed from the outside (right-hand normal pointing
+outward).
+
 # BUGS AND LIMITATIONS
 
 As noted above, the SVG specification (900 pages) is only partially implemented, and just one layer
 can be used. I suspect that diagnostics about pen travel distance may not always be correct.
-Clipping is not supported. Layering is not supported officially, but can be simulated.
+Layering is not supported officially, but can be simulated.
 
 # SEE ALSO
 
 [Graphics::Penplotter::GcodeXY::Geometry2D](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3AGeometry2D),
+[Graphics::Penplotter::GcodeXY::Geometry3D](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3AGeometry3D),
 [Graphics::Penplotter::GcodeXY::Postscript](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3APostscript),
 [Graphics::Penplotter::GcodeXY::SVG](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3ASVG),
 [Graphics::Penplotter::GcodeXY::Split](https://metacpan.org/pod/Graphics%3A%3APenplotter%3A%3AGcodeXY%3A%3ASplit),
